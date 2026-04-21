@@ -16,9 +16,6 @@ import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc, writ
 
 type AppMode = 'login' | 'teacher' | 'inspector' | 'loading';
 
-// تم تحديث بريد المفتش
-const INSPECTOR_EMAIL = 'amine3atmane@gmail.com';
-
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -128,17 +125,22 @@ const App: React.FC = () => {
 
   // دالة تحميل بيانات المستخدم
   const loadUserData = useCallback(async (userId: string, email: string, metaName?: string) => {
-      // Inspector Check
-      // مقارنة البريد الإلكتروني لتحديد وضع المفتش
-      if (email.toLowerCase() === INSPECTOR_EMAIL.toLowerCase()) {
-          setMode('inspector');
-          setUser({ 
-              id: userId, 
-              email: email, 
-              name: 'المفتش التربوي', 
-              avatarUrl: `https://ui-avatars.com/api/?name=Inspector&background=10b981&color=fff` 
-          });
-          return;
+      // Dynamic Inspector Check
+      try {
+          const authUserDoc = await getDoc(doc(db, 'authorized_users', email));
+          if (authUserDoc.exists()) {
+              setMode('inspector');
+              setUser({ 
+                  id: userId, 
+                  email: email, 
+                  name: authUserDoc.data().name || 'المفتش التربوي', // Fallback name
+                  avatarUrl: `https://ui-avatars.com/api/?name=Inspector&background=10b981&color=fff` 
+              });
+              return;
+          }
+      } catch (err) {
+          console.error("Error checking inspector status:", err);
+          // Fallback to teacher mode if check fails, or show error
       }
 
       // Teacher Data
@@ -378,22 +380,27 @@ const App: React.FC = () => {
              let validInspectorName = details.inspectorName || '';
              
              if (details.inspectorCode) {
+                 const normalizedCode = details.inspectorCode.trim().toUpperCase();
                  try {
-                     const q = query(collection(db, 'authorized_users'), where('accessCode', '==', details.inspectorCode));
+                     // Query authorized_users directly - this is the source of truth from your Inspector App
+                     const q = query(collection(db, 'authorized_users'), where('accessCode', '==', normalizedCode));
                      const codeSnap = await getDocs(q);
+                     
                      if (!codeSnap.empty) {
                          const codeDoc = codeSnap.docs[0];
                          const codeData = codeDoc.data();
-                         validInspectorId = codeData.email;
-                         validInspectorName = codeData.email.split('@')[0];
+                         // Syncing based on EMAIL ensures persistence even if codes change or users are re-added
+                         validInspectorId = codeData.email; 
+                         validInspectorName = codeData.name || codeData.email.split('@')[0];
                          details.inspectorEmail = codeData.email;
+                         details.inspectorCode = normalizedCode;
                      } else {
-                         showToast(`كود الانتساب (${details.inspectorCode}) غير موجود في النظام.`, "error");
+                         showToast(`كود الانتساب (${normalizedCode}) غير موجود في النظام. يرجى التأكد من الكود الممنوح من مفتشك.`, "error");
                          return; 
                      }
                  } catch (validError: any) {
                      console.error("Error validating code:", validError);
-                     showToast("حدث خطأ أثناء التحقق من الكود.", "error");
+                     showToast("حدث خطأ تقني أثناء التحقق من الكود. يرجى المحاولة لاحقاً.", "error");
                      return;
                  }
              }

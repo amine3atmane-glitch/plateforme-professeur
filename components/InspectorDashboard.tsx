@@ -159,38 +159,51 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
         setLoading(true);
         const user = auth.currentUser;
         try {
-            let profilesSnapshot, detailsSnapshot, sessionsSnapshot, licensesSnapshot;
-            try {
-                profilesSnapshot = await getDocs(collection(db, 'profiles'));
-                
-                if (user && user.email) {
-                    try {
-                        // Switch to querying by inspector_email to match authorized_users identity
-                        const detailsQuery = query(collection(db, 'teacher_details'), where('inspector_email', '==', user.email));
-                        detailsSnapshot = await getDocs(detailsQuery);
-                    } catch (detailsErr) {
-                        console.error("Error fetching teacher details:", detailsErr);
-                        detailsSnapshot = { docs: [] } as any;
-                        showToast("تحذير: فشل جلب بيانات الأساتذة.", "error");
-                    }
-                } else {
-                    detailsSnapshot = { docs: [] } as any;
-                }
-                
-                sessionsSnapshot = await getDocs(collection(db, 'timetable_sessions'));
-                licensesSnapshot = await getDocs(collection(db, 'licenses'));
-            } catch (error) {
-                console.error("General data fetch error:", error);
-                handleFirestoreError(error, OperationType.GET, 'InspectorDashboard fetchData');
+            if (!user || !user.email) return;
+
+            // 1. Fetch only teachers assigned to THIS inspector
+            const detailsQuery = query(
+                collection(db, 'teacher_details'), 
+                where('inspector_email', '==', user.email)
+            );
+            const detailsSnapshot = await getDocs(detailsQuery);
+            const details = detailsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            if (details.length === 0) {
+                setAllTeachers([]);
+                setAllLicenses([]);
+                setLoading(false);
                 return;
             }
 
-            const profiles = profilesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            const details = detailsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            const sessions = sessionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            const licenses = licensesSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            const teacherIds = details.map(d => d.id);
+            
+            // 2. Fetch profiles, sessions, and licenses for these specific teachers
+            // Note: Firestore 'in' query limit is 30. We'll handle multiple batches if needed.
+            const fetchInBatches = async (collectionName: string, idField: string, ids: string[]) => {
+                const results: any[] = [];
+                for (let i = 0; i < ids.length; i += 30) {
+                    const batch = ids.slice(i, i + 30);
+                    const q = query(collection(db, collectionName), where(idField, 'in', batch));
+                    const snap = await getDocs(q);
+                    results.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                }
+                return results;
+            };
 
-            const mappedLicenses: LicenseRecord[] = (licenses || []).map(l => ({
+            // Profiles are keyed by ID, so we use documentId() for the 'in' query
+            const profiles: any[] = [];
+            for (let i = 0; i < teacherIds.length; i += 30) {
+                const batch = teacherIds.slice(i, i + 30);
+                const q = query(collection(db, 'profiles'), where('__name__', 'in', batch));
+                const snap = await getDocs(q);
+                profiles.push(...snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }
+
+            const sessions = await fetchInBatches('timetable_sessions', 'user_id', teacherIds);
+            const licenses = await fetchInBatches('licenses', 'user_id', teacherIds);
+
+            const mappedLicenses: LicenseRecord[] = licenses.map(l => ({
                id: l.id,
                user_id: l.user_id,
                startDate: l.start_date,
@@ -199,10 +212,11 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
             }));
             setAllLicenses(mappedLicenses);
 
-            const merged: TeacherProfile[] = (profiles || []).map((p: any) => {
-                const detail = details?.find((d: any) => d.id === p.id);
-                const teacherSessions = (sessions || [])
-                    .filter((s: any) => s.user_id === p.id)
+            const merged: TeacherProfile[] = teacherIds.map((tid: string) => {
+                const profile = profiles.find(p => p.id === tid);
+                const detail: any = details.find(d => d.id === tid);
+                const teacherSessions = sessions
+                    .filter((s: any) => s.user_id === tid)
                     .map((s: any) => ({
                         id: s.id,
                         day: s.day as DayOfWeek,
@@ -215,10 +229,10 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
                     }));
 
                 return {
-                    id: p.id,
-                    name: detail?.full_name || p.full_name || p.email?.split('@')[0] || 'مستخدم',
-                    email: p.email,
-                    avatarUrl: p.avatar_url,
+                    id: tid,
+                    name: detail?.full_name || profile?.full_name || profile?.email?.split('@')[0] || 'مستخدم',
+                    email: profile?.email || detail?.inspector_email || '', // Fallback if profile missing
+                    avatarUrl: profile?.avatar_url,
                     sessions: teacherSessions,
                     details: detail ? {
                         fullName: detail.full_name,
@@ -233,11 +247,11 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
                         recruitmentDate: detail.recruitment_date,
                         tenureDate: detail.tenure_date,
                         lastPromotionDate: detail.last_promotion_date,
-                        gradeDate: detail.grade_date, // Added grade_date mapping
+                        gradeDate: detail.grade_date,
                         lastInspectionScore: detail.last_inspection_score,
                         lastInspectionDate: detail.last_inspection_date,
                         inspectorName: detail.inspector_name,
-                        sector: detail.sector || 'public' // Map Sector
+                        sector: detail.sector || 'public'
                     } : undefined
                 };
             });
@@ -246,6 +260,7 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
 
         } catch (err) {
             console.error("Error fetching data:", err);
+            handleFirestoreError(err, OperationType.GET, 'InspectorDashboard fetchData');
         } finally {
             setLoading(false);
         }
