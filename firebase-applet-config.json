@@ -1,10 +1,10 @@
 {
-  "projectId": "plateforme-enseigants",
-  "appId": "1:826349968527:web:d806fa2c316571ace8e4fa",
-  "apiKey": "AIzaSyBvq6sakMVH8UUV9WFkbjufKjZVgxlzQe4",
-  "authDomain": "plateforme-enseigants.firebaseapp.com",
+  "projectId": "plateforme-professeurs",
+  "appId": "1:462391218365:web:d4207ddeab9ab81eea67d4",
+  "apiKey": "AIzaSyAPJxewBao6qS1YPj3Ft0HWk_R9uCtHvfM",
+  "authDomain": "plateforme-professeurs.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "plateforme-enseigants.firebasestorage.app",
-  "messagingSenderId": "826349968527",
+  "storageBucket": "plateforme-professeurs.firebasestorage.app",
+  "messagingSenderId": "462391218365",
   "measurementId": ""
 }
