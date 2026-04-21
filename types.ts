@@ -38,6 +38,7 @@ export interface TeacherDetails {
   lastInspectionDate: string;
   inspectorName: string;
   inspectorId?: string;
+  inspectorEmail?: string;
   inspectorCode?: string;
   school?: string; 
   assignedClasses?: string[]; // قائمة الأقسام المسندة

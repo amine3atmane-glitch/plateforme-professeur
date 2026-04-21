@@ -194,6 +194,7 @@ const App: React.FC = () => {
               lastInspectionDate: detailsData.last_inspection_date, 
               inspectorName: detailsData.inspector_name,
               inspectorId: detailsData.inspector_id,
+              inspectorEmail: detailsData.inspector_email,
               inspectorCode: detailsData.inspector_code,
               assignedClasses: assignedClasses,
               sector: detailsData.sector || 'public' // Default to public if null
@@ -377,15 +378,23 @@ const App: React.FC = () => {
              let validInspectorName = details.inspectorName || '';
              
              if (details.inspectorCode) {
-                 const codeDocRef = doc(db, 'inspector_codes', details.inspectorCode);
-                 const codeSnap = await getDoc(codeDocRef);
-                 if (codeSnap.exists()) {
-                     const codeData = codeSnap.data();
-                     validInspectorId = codeData.inspector_id;
-                     validInspectorName = codeData.inspector_name;
-                 } else {
-                     showToast("كود الانتساب غير صحيح", "error");
-                     return; // Form won't save if code is invalid
+                 try {
+                     const q = query(collection(db, 'authorized_users'), where('accessCode', '==', details.inspectorCode));
+                     const codeSnap = await getDocs(q);
+                     if (!codeSnap.empty) {
+                         const codeDoc = codeSnap.docs[0];
+                         const codeData = codeDoc.data();
+                         validInspectorId = codeData.email;
+                         validInspectorName = codeData.email.split('@')[0];
+                         details.inspectorEmail = codeData.email;
+                     } else {
+                         showToast(`كود الانتساب (${details.inspectorCode}) غير موجود في النظام.`, "error");
+                         return; 
+                     }
+                 } catch (validError: any) {
+                     console.error("Error validating code:", validError);
+                     showToast("حدث خطأ أثناء التحقق من الكود.", "error");
+                     return;
                  }
              }
 
@@ -407,6 +416,7 @@ const App: React.FC = () => {
                  last_inspection_date: details.lastInspectionDate, 
                  inspector_name: validInspectorName,
                  inspector_id: validInspectorId,
+                 inspector_email: details.inspectorEmail || null,
                  inspector_code: details.inspectorCode || null,
                  sector: details.sector || 'public' // Include sector in save
             }, { merge: true });

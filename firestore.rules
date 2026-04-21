@@ -20,8 +20,10 @@ service cloud.firestore {
     }
 
     function isInspector() {
-      // The inspector email is hardcoded in the app: amine3atmane@gmail.com
-      return isSignedIn() && isEmailVerified() && request.auth.token.email.lower() == 'amine3atmane@gmail.com';
+      // Check if user is in authorized_users with role 'user' (as seen in screenshot)
+      return isSignedIn() && 
+             isEmailVerified() && 
+             exists(/databases/$(database)/documents/authorized_users/$(request.auth.token.email));
     }
 
     function incoming() {
@@ -103,10 +105,9 @@ service cloud.firestore {
 
     // --- Collection Matches ---
 
-    match /inspector_codes/{codeId} {
+    match /authorized_users/{email} {
       allow read: if isSignedIn();
-      allow create, update: if isInspector() && isValidInspectorCode(incoming());
-      allow delete: if isInspector();
+      allow write: if false; // Only manageable through the Smart Inspector app
     }
 
     match /settings/branding {

@@ -31,6 +31,9 @@
         "last_inspection_score": { "type": "string" },
         "last_inspection_date": { "type": "string" },
         "inspector_name": { "type": "string" },
+        "inspector_id": { "type": "string" },
+        "inspector_email": { "type": "string" },
+        "inspector_code": { "type": "string" },
         "sector": { "type": "string", "enum": ["public", "private"] }
       }
     },
@@ -70,22 +73,23 @@
         "ministry_logo_url": { "type": "string", "description": "URL of the ministry logo." }
       }
     },
-    "InspectorCode": {
-      "title": "Inspector Code",
-      "description": "Access code mapping to an inspector.",
+    "AuthorizedUser": {
+      "title": "Authorized User",
+      "description": "User allowed to use the Smart Inspector app with an access code.",
       "type": "object",
       "properties": {
-        "inspector_id": { "type": "string" },
-        "inspector_email": { "type": "string" },
-        "inspector_name": { "type": "string" }
+        "accessCode": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "addedAt": { "type": "string" }
       },
-      "required": ["inspector_id", "inspector_email", "inspector_name"]
+      "required": ["accessCode", "email"]
     }
   },
   "firestore": {
-    "inspector_codes/{codeId}": {
-      "schema": "InspectorCode",
-      "description": "Collection mapping short access codes to inspector IDs."
+    "authorized_users/{email}": {
+      "schema": "AuthorizedUser",
+      "description": "Collection mapping inspector emails to access codes."
     },
     "settings/branding": {
       "schema": "Branding",

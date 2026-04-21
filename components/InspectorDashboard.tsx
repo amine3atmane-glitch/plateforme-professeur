@@ -119,32 +119,27 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
     }
   };
 
-  // Fetch data
-  useEffect(() => {
-    const initInspectorCode = async () => {
-        const user = auth.currentUser;
-        if (!user) return;
-        
-        try {
-            const codesQuery = query(collection(db, 'inspector_codes'), where('inspector_id', '==', user.uid));
-            const codesSnapshot = await getDocs(codesQuery);
+    // Fetch data
+    useEffect(() => {
+        const initInspectorCode = async () => {
+            const user = auth.currentUser;
+            if (!user || !user.email) return;
             
-            if (!codesSnapshot.empty) {
-                setInspectorCode(codesSnapshot.docs[0].id);
-            } else {
-                const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                await setDoc(doc(db, 'inspector_codes', newCode), {
-                    inspector_id: user.uid,
-                    inspector_email: user.email,
-                    inspector_name: user.displayName || 'المفتش التربوي'
-                });
-                setInspectorCode(newCode);
+            try {
+                // Fetch code from 'authorized_users' as seen in the screenshot
+                const authUserDoc = await getDoc(doc(db, 'authorized_users', user.email));
+                
+                if (authUserDoc.exists()) {
+                    setInspectorCode(authUserDoc.data().accessCode || 'بدون كود');
+                } else {
+                    console.log("No authorized_users document found for current user email.");
+                    setInspectorCode('غير مرخص');
+                }
+            } catch (err) {
+                console.error("Error in inspector code lookup:", err);
             }
-        } catch (err) {
-            console.error("Error initializing inspector code:", err);
-        }
-    };
-    initInspectorCode();
+        };
+        initInspectorCode();
 
     const fetchBranding = async () => {
         try {
@@ -168,9 +163,16 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
             try {
                 profilesSnapshot = await getDocs(collection(db, 'profiles'));
                 
-                if (user) {
-                    const detailsQuery = query(collection(db, 'teacher_details'), where('inspector_id', '==', user.uid));
-                    detailsSnapshot = await getDocs(detailsQuery);
+                if (user && user.email) {
+                    try {
+                        // Switch to querying by inspector_email to match authorized_users identity
+                        const detailsQuery = query(collection(db, 'teacher_details'), where('inspector_email', '==', user.email));
+                        detailsSnapshot = await getDocs(detailsQuery);
+                    } catch (detailsErr) {
+                        console.error("Error fetching teacher details:", detailsErr);
+                        detailsSnapshot = { docs: [] } as any;
+                        showToast("تحذير: فشل جلب بيانات الأساتذة.", "error");
+                    }
                 } else {
                     detailsSnapshot = { docs: [] } as any;
                 }
@@ -178,6 +180,7 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
                 sessionsSnapshot = await getDocs(collection(db, 'timetable_sessions'));
                 licensesSnapshot = await getDocs(collection(db, 'licenses'));
             } catch (error) {
+                console.error("General data fetch error:", error);
                 handleFirestoreError(error, OperationType.GET, 'InspectorDashboard fetchData');
                 return;
             }
