@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "User Profile",
+      "description": "Basic information about the teacher or inspector.",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string", "description": "The full name of the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "avatar_url": { "type": "string", "description": "URL to the user's avatar image." }
+      },
+      "required": ["email"]
+    },
+    "TeacherDetails": {
+      "title": "Teacher Details",
+      "description": "Professional details for a teacher account.",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "payment_id": { "type": "string", "description": "PPR number." },
+        "recruitment_date": { "type": "string" },
+        "tenure_date": { "type": "string" },
+        "last_promotion_date": { "type": "string" },
+        "grade_date": { "type": "string" },
+        "genre": { "type": "string", "enum": ["male", "female"] },
+        "framework": { "type": "string" },
+        "institution": { "type": "string" },
+        "subject": { "type": "string" },
+        "grade": { "type": "string" },
+        "rank": { "type": "string" },
+        "last_inspection_score": { "type": "string" },
+        "last_inspection_date": { "type": "string" },
+        "inspector_name": { "type": "string" },
+        "sector": { "type": "string", "enum": ["public", "private"] }
+      }
+    },
+    "TimetableSession": {
+      "title": "Timetable Session",
+      "description": "A single class session in a teacher's schedule.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string", "description": "ID of the teacher who owns this session." },
+        "day": { "type": "string", "description": "Day of the week (Arabic)." },
+        "start_time": { "type": "string", "description": "HH:mm format." },
+        "end_time": { "type": "string", "description": "HH:mm format." },
+        "subject": { "type": "string" },
+        "class_name": { "type": "string" },
+        "room": { "type": "string" },
+        "color": { "type": "string", "description": "Tailwind color class." }
+      },
+      "required": ["user_id", "day", "start_time", "end_time"]
+    },
+    "License": {
+      "title": "Medical/Administrative License",
+      "description": "A record of a license or absence.",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "start_date": { "type": "string" },
+        "end_date": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "required": ["user_id", "start_date", "end_date"]
+    }
+  },
+  "firestore": {
+    "profiles/{userId}": {
+      "schema": "Profile",
+      "description": "User profiles keyed by UID."
+    },
+    "teacher_details/{userId}": {
+      "schema": "TeacherDetails",
+      "description": "Detailed professional info keyed by UID."
+    },
+    "timetable_sessions/{sessionId}": {
+      "schema": "TimetableSession",
+      "description": "Collection of all class sessions."
+    },
+    "licenses/{licenseId}": {
+      "schema": "License",
+      "description": "Collection of teacher licenses."
+    },
+    "teachers/{userId}": {
+      "schema": "TeacherDetails",
+      "description": "Collection used for syncing with the inspection application."
+    }
+  }
+}

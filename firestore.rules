@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isInspector() {
+      // The inspector email is hardcoded in the app: amine3atmane@gmail.com
+      return isSignedIn() && isEmailVerified() && request.auth.token.email.lower() == 'amine3atmane@gmail.com';
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation helper for optional strings that could be null
+    function isOptionalString(val, maxSize) {
+      return val == null || (val is string && val.size() <= maxSize);
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidProfile(data) {
+      return isOptionalString(data.get('email', null), 200) &&
+             isOptionalString(data.get('full_name', null), 200) &&
+             isOptionalString(data.get('avatar_url', null), 1000) &&
+             isOptionalString(data.get('id', null), 128) &&
+             isOptionalString(data.get('updated_at', null), 50);
+    }
+
+    function isValidTeacherDetails(data) {
+      return isOptionalString(data.get('id', null), 128) &&
+             isOptionalString(data.get('full_name', null), 200) &&
+             isOptionalString(data.get('payment_id', null), 50) &&
+             isOptionalString(data.get('recruitment_date', null), 20) &&
+             isOptionalString(data.get('tenure_date', null), 20) &&
+             isOptionalString(data.get('last_promotion_date', null), 20) &&
+             isOptionalString(data.get('grade_date', null), 20) &&
+             (data.get('genre', 'male') in ['male', 'female']) &&
+             isOptionalString(data.get('framework', null), 200) &&
+             isOptionalString(data.get('institution', null), 200) &&
+             isOptionalString(data.get('subject', null), 200) &&
+             isOptionalString(data.get('grade', null), 100) &&
+             isOptionalString(data.get('rank', null), 50) &&
+             isOptionalString(data.get('last_inspection_score', null), 10) &&
+             isOptionalString(data.get('last_inspection_date', null), 20) &&
+             isOptionalString(data.get('inspector_name', null), 200) &&
+             (data.get('sector', 'public') in ['public', 'private']);
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['user_id', 'day', 'start_time', 'end_time']) &&
+             data.user_id == request.auth.uid &&
+             data.day is string &&
+             data.start_time is string &&
+             data.end_time is string &&
+             isOptionalString(data.get('id', null), 128);
+    }
+
+    function isValidLicense(data) {
+      return data.keys().hasAll(['user_id', 'start_date', 'end_date']) &&
+             data.user_id == request.auth.uid &&
+             data.start_date is string &&
+             data.end_date is string &&
+             isOptionalString(data.get('id', null), 128);
+    }
+
+    // --- Collection Matches ---
+
+    match /profiles/{userId} {
+      allow read: if isOwner(userId) || isInspector();
+      allow create, update: if isOwner(userId) && isValidProfile(incoming());
+      allow delete: if false;
+    }
+
+    match /teacher_details/{userId} {
+      allow read: if isOwner(userId) || isInspector();
+      allow create, update: if isOwner(userId) && isValidTeacherDetails(incoming());
+      allow delete: if false;
+    }
+
+    match /timetable_sessions/{sessionId} {
+      allow list: if isInspector() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow get: if isInspector() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow create: if isSignedIn() && isValidSession(incoming());
+      allow update: if isSignedIn() && existing().user_id == request.auth.uid && isValidSession(incoming());
+      allow delete: if isSignedIn() && existing().user_id == request.auth.uid;
+    }
+
+    match /licenses/{licenseId} {
+      allow list: if isInspector() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow get: if isInspector() || (isSignedIn() && resource.data.user_id == request.auth.uid);
+      allow create: if isSignedIn() && isValidLicense(incoming());
+      allow update: if isSignedIn() && existing().user_id == request.auth.uid && isValidLicense(incoming());
+      allow delete: if isSignedIn() && existing().user_id == request.auth.uid;
+    }
+
+    match /teachers/{userId} {
+      allow read: if isInspector() || isOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+  }
+}

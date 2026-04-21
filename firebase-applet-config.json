@@ -1,0 +1,10 @@
+{
+  "projectId": "plateforme-enseigants",
+  "appId": "1:826349968527:web:d806fa2c316571ace8e4fa",
+  "apiKey": "AIzaSyBvq6sakMVH8UUV9WFkbjufKjZVgxlzQe4",
+  "authDomain": "plateforme-enseigants.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "plateforme-enseigants.firebasestorage.app",
+  "messagingSenderId": "826349968527",
+  "measurementId": ""
+}
