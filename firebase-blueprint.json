@@ -61,9 +61,21 @@
         "reason": { "type": "string" }
       },
       "required": ["user_id", "start_date", "end_date"]
+    },
+    "Branding": {
+      "title": "Application Branding",
+      "description": "Settings for logos and branding.",
+      "type": "object",
+      "properties": {
+        "ministry_logo_url": { "type": "string", "description": "URL of the ministry logo." }
+      }
     }
   },
   "firestore": {
+    "settings/branding": {
+      "schema": "Branding",
+      "description": "Global branding settings."
+    },
     "profiles/{userId}": {
       "schema": "Profile",
       "description": "User profiles keyed by UID."

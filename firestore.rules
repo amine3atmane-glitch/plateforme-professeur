@@ -88,7 +88,16 @@ service cloud.firestore {
              isOptionalString(data.get('id', null), 128);
     }
 
+    function isValidBranding(data) {
+      return isOptionalString(data.get('ministry_logo_url', null), 2000000);
+    }
+
     // --- Collection Matches ---
+
+    match /settings/branding {
+      allow read: if true;
+      allow write: if isInspector();
+    }
 
     match /profiles/{userId} {
       allow read: if isOwner(userId) || isInspector();

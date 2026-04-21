@@ -27,7 +27,7 @@ const TeacherProfileForm: React.FC<TeacherProfileFormProps> = ({ user, onSave, o
     subject: 'التربية البدنية والرياضية',
     lastInspectionScore: '',
     lastInspectionDate: '',
-    inspectorName: 'سنوسي أمين',
+    inspectorName: '',
     assignedClasses: [],
     sector: 'public'
   });
@@ -56,7 +56,7 @@ const TeacherProfileForm: React.FC<TeacherProfileFormProps> = ({ user, onSave, o
             fullName: user.details.fullName || user.name,
             genre: user.details.genre || 'male',
             subject: user.details.subject || 'التربية البدنية والرياضية',
-            inspectorName: user.details.inspectorName || 'سنوسي أمين',
+            inspectorName: user.details.inspectorName || '',
             institution: user.details.institution || user.details.school || '',
             paymentId: user.details.paymentId || '',
             recruitmentDate: user.details.recruitmentDate || '',
@@ -319,7 +319,7 @@ const TeacherProfileForm: React.FC<TeacherProfileFormProps> = ({ user, onSave, o
         <div className="bg-white py-8 px-4 shadow-xl sm:rounded-lg sm:px-10 border border-gray-100">
           <div className="mb-8 text-center">
              <div className="mx-auto h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-               <UserCheck className="h-6 w-6 text-indigo-600" />
+               <GraduationCap className="h-6 w-6 text-indigo-600" />
              </div>
              <h2 className="text-2xl font-bold text-gray-900">الملف المهني للأستاذ</h2>
              <p className="mt-2 text-sm text-gray-600">

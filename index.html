@@ -32,9 +32,21 @@
       }
     </style>
     <link rel="stylesheet" href="/index.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/ios-filled/180/4f46e5/graduation-cap.png">
   </head>
   <body class="bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

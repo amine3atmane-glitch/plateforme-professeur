@@ -8,12 +8,12 @@ import ConfirmationModal from './ConfirmationModal';
 import { 
   Filter, UserCheck, UserX, Clock, Calendar, LogOut, Sun, Moon, X, Download, 
   Briefcase, GraduationCap, Award, Building, ClipboardList, User, CreditCard, 
-  BookOpen, Settings, MessageCircle, Share2, Lock, Plane, Info, Check, ChevronLeft, ChevronRight, Save, Edit, TrendingUp, AlertTriangle, Search, CheckCircle2, Building2, Trash2
+  BookOpen, Settings, MessageCircle, Share2, Lock, Plane, Info, Check, ChevronLeft, ChevronRight, Save, Edit, TrendingUp, AlertTriangle, Search, CheckCircle2, Building2, Trash2, Upload
 } from 'lucide-react';
 import { utils, writeFile } from 'xlsx';
 import { auth, db } from '../services/firebase';
 import { signOut, updatePassword } from 'firebase/auth';
-import { collection, getDocs, doc, deleteDoc, writeBatch, setDoc, updateDoc, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, deleteDoc, writeBatch, setDoc, updateDoc, query, where, getDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../App';
 
 interface InspectorDashboardProps {
@@ -70,6 +70,12 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
     initialClassName: string;
   }>({ isOpen: false, day: DayOfWeek.MONDAY, time: '08:00', initialClassName: '' });
 
+  // Branding State
+  const [ministryLogoUrl, setMinistryLogoUrl] = useState<string>('');
+  const [tempLogoUrl, setTempLogoUrl] = useState<string>('');
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [brandingMsg, setBrandingMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+
   const handleOpenTeacher = (teacher: TeacherProfile) => {
     setViewingTeacher(teacher);
     setModifiedSessions(teacher.sessions); // Initialize local copy
@@ -114,6 +120,20 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
 
   // Fetch data
   useEffect(() => {
+    const fetchBranding = async () => {
+        try {
+            const brandingDoc = await getDoc(doc(db, 'settings', 'branding'));
+            if (brandingDoc.exists()) {
+                const data = brandingDoc.data();
+                setMinistryLogoUrl(data.ministry_logo_url || '');
+                setTempLogoUrl(data.ministry_logo_url || '');
+            }
+        } catch (err) {
+            console.error("Error fetching branding:", err);
+        }
+    };
+    fetchBranding();
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -159,7 +179,7 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
 
                 return {
                     id: p.id,
-                    name: detail?.full_name || p.full_name || 'أستاذ',
+                    name: detail?.full_name || p.full_name || p.email?.split('@')[0] || 'مستخدم',
                     email: p.email,
                     avatarUrl: p.avatar_url,
                     sessions: teacherSessions,
@@ -371,6 +391,41 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
     const start = getStartOfWeek(new Date(selectedDate));
     return start.toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' });
   }, [selectedDate]);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB Limit
+        setBrandingMsg({ type: 'error', text: 'حجم الصورة كبير جداً (الأقصى 1 ميجابايت)' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempLogoUrl(reader.result as string);
+        setBrandingMsg(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUpdateBranding = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBrandingLoading(true);
+    setBrandingMsg(null);
+    try {
+        await setDoc(doc(db, 'settings', 'branding'), {
+            ministry_logo_url: tempLogoUrl,
+            updated_at: new Date().toISOString()
+        }, { merge: true });
+        setMinistryLogoUrl(tempLogoUrl);
+        setBrandingMsg({ type: 'success', text: 'تم تحديث الشعار بنجاح' });
+    } catch (err: any) {
+        console.error("Error updating branding:", err);
+        setBrandingMsg({ type: 'error', text: 'فشل تحديث الشعار' });
+    } finally {
+        setBrandingLoading(false);
+    }
+  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -748,7 +803,7 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
       <header className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-md border-b border-gray-200 dark:border-slate-700/50 sticky top-0 z-40 transition-colors">
         <div className="max-w-7xl mx-auto px-4 min-h-[4rem] py-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 flex-shrink-0">
-             <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-600/20"><UserCheck className="h-5 w-5 text-white" /></div>
+             <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-600/20"><GraduationCap className="h-5 w-5 text-white" /></div>
              <div className="min-w-0">
                 <h1 className="text-base sm:text-lg font-bold leading-none tracking-tight truncate">فضاء التفتيش</h1>
                 <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1 font-medium truncate hidden sm:block">نظام تتبع الأداء التربوي الرقمي</p>
@@ -1208,24 +1263,89 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
 
       {/* Settings Modal */}
       {showSettings && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-              <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-8 shadow-2xl border border-gray-200 dark:border-slate-700 animate-in zoom-in duration-200 transition-colors">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
+              <div className="bg-white dark:bg-slate-800 rounded-[2rem] w-full max-w-md p-8 shadow-2xl border border-gray-200 dark:border-slate-700 animate-in zoom-in duration-200 transition-colors my-auto">
                   <div className="flex justify-between items-center mb-8">
-                      <h3 className="text-xl font-bold flex items-center gap-3 text-gray-900 dark:text-slate-100"><Lock className="h-6 w-6 text-indigo-500" /> إعدادات الحساب</h3>
-                      <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl text-gray-500 dark:text-slate-400"><X className="h-6 w-6" /></button>
+                      <h3 className="text-xl font-bold flex items-center gap-3 text-gray-900 dark:text-slate-100"><Settings className="h-6 w-6 text-indigo-500" /> إعدادات المنصة</h3>
+                      <button onClick={() => { setShowSettings(false); setBrandingMsg(null); setPasswordMsg(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl text-gray-500 dark:text-slate-400"><X className="h-6 w-6" /></button>
                   </div>
-                  <form onSubmit={handleUpdatePassword} className="space-y-6">
-                      <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-slate-500 mb-2 block mr-1">كلمة المرور الجديدة</label>
-                          <input type="password" required minLength={6} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-5 py-3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                      </div>
-                      <div>
-                          <label className="text-xs font-bold text-gray-500 dark:text-slate-500 mb-2 block mr-1">تأكيد كلمة المرور</label>
-                          <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-5 py-3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                      </div>
-                      {passwordMsg && <div className={`p-4 rounded-2xl text-xs font-bold border ${passwordMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'}`}>{passwordMsg.text}</div>}
-                      <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20">تحديث البيانات</button>
-                  </form>
+                  
+                  <div className="space-y-8">
+                      {/* Branding Section */}
+                      <section className="space-y-4">
+                          <h4 className="text-sm font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                              <Building2 className="h-4 w-4" /> هوية المنصة
+                          </h4>
+                          <form onSubmit={handleUpdateBranding} className="space-y-4">
+                              <div className="space-y-2">
+                                  <label className="text-xs font-bold text-gray-500 dark:text-slate-500 mb-2 block mr-1">شعار الوزارة (صورة)</label>
+                                  <div className="flex flex-col gap-3">
+                                      <input 
+                                          type="file" 
+                                          id="logo-upload"
+                                          accept="image/*"
+                                          onChange={handleLogoUpload}
+                                          className="hidden"
+                                      />
+                                      <label 
+                                          htmlFor="logo-upload"
+                                          className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-gray-50 dark:bg-slate-900 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-gray-600 dark:text-slate-400 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/30 transition-all"
+                                      >
+                                          <Upload className="h-5 w-5" />
+                                          إختيار صورة من الجهاز
+                                      </label>
+                                      
+                                      <div className="relative group">
+                                          <input 
+                                            type="url" 
+                                            placeholder="أو ضع رابط خارجي هنا..."
+                                            value={tempLogoUrl} 
+                                            onChange={e => setTempLogoUrl(e.target.value)} 
+                                            className="w-full px-5 py-3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl text-[10px] font-bold text-gray-400 dark:text-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                          />
+                                      </div>
+                                  </div>
+                              </div>
+                              {tempLogoUrl && (
+                                  <div className="relative group flex justify-center p-6 bg-gray-50 dark:bg-slate-900 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700 shadow-inner">
+                                      <img src={tempLogoUrl} alt="Preview" className="h-20 object-contain drop-shadow-md" referrerPolicy="no-referrer" />
+                                      <button 
+                                        type="button"
+                                        onClick={() => setTempLogoUrl('')}
+                                        className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                          <X className="h-4 w-4" />
+                                      </button>
+                                  </div>
+                              )}
+                              {brandingMsg && <div className={`p-4 rounded-xl text-xs font-bold border ${brandingMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'}`}>{brandingMsg.text}</div>}
+                              <button type="submit" disabled={brandingLoading} className="w-full py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50">
+                                  {brandingLoading ? 'جاري الحفظ...' : 'حفظ الشعار'}
+                              </button>
+                          </form>
+                      </section>
+
+                      <div className="h-px bg-gray-100 dark:bg-slate-700"></div>
+
+                      {/* Password Section */}
+                      <section className="space-y-4">
+                          <h4 className="text-sm font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                              <Lock className="h-4 w-4" /> الأمان
+                          </h4>
+                          <form onSubmit={handleUpdatePassword} className="space-y-4">
+                              <div>
+                                  <label className="text-xs font-bold text-gray-500 dark:text-slate-500 mb-2 block mr-1">كلمة المرور الجديدة</label>
+                                  <input type="password" required minLength={6} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-5 py-3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                              </div>
+                              <div>
+                                  <label className="text-xs font-bold text-gray-500 dark:text-slate-500 mb-2 block mr-1">تأكيد كلمة المرور</label>
+                                  <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-5 py-3 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                              </div>
+                              {passwordMsg && <div className={`p-4 rounded-xl text-xs font-bold border ${passwordMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'}`}>{passwordMsg.text}</div>}
+                              <button type="submit" className="w-full py-3 bg-gray-900 dark:bg-slate-700 text-white text-sm font-bold rounded-xl hover:bg-black dark:hover:bg-slate-600 transition-all">تحديث كلمة المرور</button>
+                          </form>
+                      </section>
+                  </div>
               </div>
           </div>
       )}

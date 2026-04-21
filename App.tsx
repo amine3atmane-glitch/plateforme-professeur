@@ -9,7 +9,7 @@ import LicenseModal from './components/LicenseModal';
 import EditSlotModal from './components/EditSlotModal';
 import TeacherProfileForm from './components/TeacherProfileForm';
 import AboutModal from './components/AboutModal';
-import { LogOut, Calendar, Send, CloudOff, RefreshCw, Edit, Info, Sun, Moon, FileText, CheckSquare, Edit2, Settings, Lock, X } from 'lucide-react';
+import { LogOut, Calendar, Send, CloudOff, RefreshCw, Edit, Info, Sun, Moon, FileText, CheckSquare, Edit2, Settings, Lock, X, GraduationCap } from 'lucide-react';
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -203,8 +203,9 @@ const App: React.FC = () => {
             if (finalDetails) finalDetails.assignedClasses = assignedClasses;
             if (detailsError) setIsOffline(true);
       } else {
-            // استخدام metaName إذا كان موجوداً كأولوية أولى
-            const initialName = metaName || profile?.full_name || 'أستاذ';
+            // Get name fallback from email if displayName is missing
+            const emailPrefix = email.split('@')[0];
+            const initialName = metaName || profile?.full_name || emailPrefix;
             
             finalDetails = { 
               fullName: initialName, 
@@ -219,14 +220,15 @@ const App: React.FC = () => {
               rank: '', 
               lastInspectionScore: '', 
               lastInspectionDate: '', 
-              inspectorName: 'سنوسي أمين', 
+              inspectorName: '', 
               assignedClasses: [],
               sector: 'public'
           };
       }
 
       // تحديد الاسم المعروض: الأولوية للتفاصيل المحفوظة، ثم البروفايل، ثم الاسم من التسجيل (metaName)
-      const displayName = finalDetails?.fullName || profile?.full_name || metaName || 'أستاذ';
+      const emailPrefix = email.split('@')[0];
+      const displayName = finalDetails?.fullName || profile?.full_name || metaName || emailPrefix;
       const displayAvatar = localAvatarStr || profile?.avatar_url || `https://ui-avatars.com/api/?name=${displayName}&background=random`;
 
       setUser({ id: userId, email: email, name: displayName, avatarUrl: displayAvatar, details: finalDetails });
@@ -652,7 +654,7 @@ const App: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     <div className="flex items-center gap-3">
-                        <div className="bg-indigo-600 p-2 rounded-lg"><Calendar className="h-6 w-6 text-white" /></div>
+                        <div className="bg-indigo-600 p-2 rounded-lg"><GraduationCap className="h-6 w-6 text-white" /></div>
                         <div>
                             <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-none">جدول الحصص</h1>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">أوقات العمل</p>
