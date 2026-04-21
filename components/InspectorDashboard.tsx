@@ -43,6 +43,7 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
   const [sectorFilter, setSectorFilter] = useState<'all' | 'public' | 'private'>('all');
   
   const [showSettings, setShowSettings] = useState(false);
+  const [inspectorCode, setInspectorCode] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
@@ -120,6 +121,31 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
 
   // Fetch data
   useEffect(() => {
+    const initInspectorCode = async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+        
+        try {
+            const codesQuery = query(collection(db, 'inspector_codes'), where('inspector_id', '==', user.uid));
+            const codesSnapshot = await getDocs(codesQuery);
+            
+            if (!codesSnapshot.empty) {
+                setInspectorCode(codesSnapshot.docs[0].id);
+            } else {
+                const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                await setDoc(doc(db, 'inspector_codes', newCode), {
+                    inspector_id: user.uid,
+                    inspector_email: user.email,
+                    inspector_name: user.displayName || 'المفتش التربوي'
+                });
+                setInspectorCode(newCode);
+            }
+        } catch (err) {
+            console.error("Error initializing inspector code:", err);
+        }
+    };
+    initInspectorCode();
+
     const fetchBranding = async () => {
         try {
             const brandingDoc = await getDoc(doc(db, 'settings', 'branding'));
@@ -136,11 +162,19 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
 
     const fetchData = async () => {
         setLoading(true);
+        const user = auth.currentUser;
         try {
             let profilesSnapshot, detailsSnapshot, sessionsSnapshot, licensesSnapshot;
             try {
                 profilesSnapshot = await getDocs(collection(db, 'profiles'));
-                detailsSnapshot = await getDocs(collection(db, 'teacher_details'));
+                
+                if (user) {
+                    const detailsQuery = query(collection(db, 'teacher_details'), where('inspector_id', '==', user.uid));
+                    detailsSnapshot = await getDocs(detailsQuery);
+                } else {
+                    detailsSnapshot = { docs: [] } as any;
+                }
+                
                 sessionsSnapshot = await getDocs(collection(db, 'timetable_sessions'));
                 licensesSnapshot = await getDocs(collection(db, 'licenses'));
             } catch (error) {
@@ -1271,6 +1305,31 @@ const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onLogout, onThe
                   </div>
                   
                   <div className="space-y-8">
+                      {/* Access Code Section */}
+                      <section className="space-y-4">
+                          <h4 className="text-sm font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                              <Lock className="h-4 w-4" /> كود الانتساب
+                          </h4>
+                          <div className="p-5 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                              <p className="text-sm text-indigo-800 dark:text-indigo-200 mb-3 font-medium text-center leading-relaxed">
+                                  قم بإعطاء هذا الكود للأساتذة الجدد لكي يتمكنوا من ربط حساباتهم بحسابك تلقائياً.
+                              </p>
+                              <div className="flex items-center justify-center gap-3">
+                                  <div className="flex-1 bg-white dark:bg-slate-900 px-6 py-3 rounded-xl border border-indigo-200 dark:border-indigo-700 font-mono text-2xl font-black tracking-[0.2em] text-center text-indigo-600 dark:text-indigo-400">
+                                      {inspectorCode || 'جاري التوليد...'}
+                                  </div>
+                                  <button 
+                                      type="button"
+                                      onClick={() => { if(inspectorCode) { navigator.clipboard.writeText(inspectorCode); alert('تم نسخ الكود!'); } }}
+                                      className="p-3.5 bg-indigo-600 outline-none text-white rounded-xl hover:bg-indigo-700 hover:shadow-lg transition flex items-center justify-center shrink-0"
+                                      title="نسخ الكود"
+                                  >
+                                      <ClipboardList className="h-6 w-6" />
+                                  </button>
+                              </div>
+                          </div>
+                      </section>
+
                       {/* Branding Section */}
                       <section className="space-y-4">
                           <h4 className="text-sm font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">

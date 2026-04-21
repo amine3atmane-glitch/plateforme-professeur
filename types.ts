@@ -37,6 +37,8 @@ export interface TeacherDetails {
   lastInspectionScore: string;
   lastInspectionDate: string;
   inspectorName: string;
+  inspectorId?: string;
+  inspectorCode?: string;
   school?: string; 
   assignedClasses?: string[]; // قائمة الأقسام المسندة
   sector?: 'public' | 'private'; // تصنيف القطاع: عمومي أو خصوصي

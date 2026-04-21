@@ -68,6 +68,8 @@ service cloud.firestore {
              isOptionalString(data.get('last_inspection_score', null), 10) &&
              isOptionalString(data.get('last_inspection_date', null), 20) &&
              isOptionalString(data.get('inspector_name', null), 200) &&
+             isOptionalString(data.get('inspector_id', null), 128) &&
+             isOptionalString(data.get('inspector_code', null), 50) &&
              (data.get('sector', 'public') in ['public', 'private']);
     }
 
@@ -92,7 +94,20 @@ service cloud.firestore {
       return isOptionalString(data.get('ministry_logo_url', null), 2000000);
     }
 
+    function isValidInspectorCode(data) {
+      return data.keys().hasAll(['inspector_id', 'inspector_email', 'inspector_name']) &&
+             data.inspector_id == request.auth.uid &&
+             data.inspector_email is string &&
+             data.inspector_name is string;
+    }
+
     // --- Collection Matches ---
+
+    match /inspector_codes/{codeId} {
+      allow read: if isSignedIn();
+      allow create, update: if isInspector() && isValidInspectorCode(incoming());
+      allow delete: if isInspector();
+    }
 
     match /settings/branding {
       allow read: if true;

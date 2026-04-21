@@ -193,6 +193,8 @@ const App: React.FC = () => {
               lastInspectionScore: detailsData.last_inspection_score, 
               lastInspectionDate: detailsData.last_inspection_date, 
               inspectorName: detailsData.inspector_name,
+              inspectorId: detailsData.inspector_id,
+              inspectorCode: detailsData.inspector_code,
               assignedClasses: assignedClasses,
               sector: detailsData.sector || 'public' // Default to public if null
           };
@@ -370,6 +372,23 @@ const App: React.FC = () => {
          }
 
          try {
+             // Validate Inspector Code if provided
+             let validInspectorId = details.inspectorId || null;
+             let validInspectorName = details.inspectorName || '';
+             
+             if (details.inspectorCode) {
+                 const codeDocRef = doc(db, 'inspector_codes', details.inspectorCode);
+                 const codeSnap = await getDoc(codeDocRef);
+                 if (codeSnap.exists()) {
+                     const codeData = codeSnap.data();
+                     validInspectorId = codeData.inspector_id;
+                     validInspectorName = codeData.inspector_name;
+                 } else {
+                     showToast("كود الانتساب غير صحيح", "error");
+                     return; // Form won't save if code is invalid
+                 }
+             }
+
              await setDoc(doc(db, 'teacher_details', user.id), { 
                  id: user.id, 
                  full_name: details.fullName, 
@@ -386,7 +405,9 @@ const App: React.FC = () => {
                  rank: details.rank, 
                  last_inspection_score: details.lastInspectionScore, 
                  last_inspection_date: details.lastInspectionDate, 
-                 inspector_name: details.inspectorName,
+                 inspector_name: validInspectorName,
+                 inspector_id: validInspectorId,
+                 inspector_code: details.inspectorCode || null,
                  sector: details.sector || 'public' // Include sector in save
             }, { merge: true });
 
@@ -402,17 +423,24 @@ const App: React.FC = () => {
 
              await setDoc(doc(db, 'profiles', user.id), profileUpdates, { merge: true });
              
+             // Update the local details with the validated inspector info
+             const updatedDetails = {
+                 ...details,
+                 inspectorId: validInspectorId || undefined,
+                 inspectorName: validInspectorName
+             };
+
              // Sync with inspection app
-             await syncWithInspectionApp(details, sessions, photoUrl);
+             await syncWithInspectionApp(updatedDetails, sessions, photoUrl);
 
              setUser({ 
                  ...user, 
-                 name: details.fullName, 
+                 name: updatedDetails.fullName, 
                  avatarUrl: photoUrl || user.avatarUrl, 
-                 details 
+                 details: updatedDetails 
              });
 
-             localStorage.setItem(`teacher_details_${user.id}`, JSON.stringify(details));
+             localStorage.setItem(`teacher_details_${user.id}`, JSON.stringify(updatedDetails));
              if (photoUrl) {
                  localStorage.setItem(`avatar_${user.id}`, photoUrl);
              }

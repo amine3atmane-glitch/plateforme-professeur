@@ -64,7 +64,8 @@ const TeacherProfileForm: React.FC<TeacherProfileFormProps> = ({ user, onSave, o
             lastPromotionDate: user.details.lastPromotionDate || '',
             gradeDate: user.details.gradeDate || '',
             assignedClasses: user.details.assignedClasses || [],
-            sector: user.details.sector || 'public'
+            sector: user.details.sector || 'public',
+            inspectorCode: user.details.inspectorCode || ''
         });
 
         // Split institution if it exists
@@ -116,6 +117,11 @@ const TeacherProfileForm: React.FC<TeacherProfileFormProps> = ({ user, onSave, o
     if (name === 'institution') {
          setFormData(prev => ({ ...prev, [name]: value, school: value }));
          return;
+    }
+
+    if (name === 'inspectorCode') {
+        setFormData(prev => ({ ...prev, [name]: value.toUpperCase().trim() }));
+        return;
     }
 
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -558,12 +564,13 @@ const TeacherProfileForm: React.FC<TeacherProfileFormProps> = ({ user, onSave, o
                         <input type="date" name="lastInspectionDate" value={formData.lastInspectionDate} onChange={handleChange} className="block w-full border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border text-gray-900 dark:text-white bg-white dark:bg-slate-700" />
                     </div>
                   </div>
-                  <div>
-                     <label className="block text-xs font-medium text-gray-700 mb-1">المفتش المسؤول <span className="text-xs font-normal text-gray-400">(اختياري)</span></label>
+                  <div className="bg-indigo-50/50 p-2 border border-indigo-100 rounded-lg">
+                     <label className="block text-xs font-bold text-indigo-700 mb-1">كود انتساب المفتش (إن وجد)</label>
                      <div className="relative rounded-md shadow-sm">
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><UserCheck className="h-4 w-4 text-gray-400" /></div>
-                        <input type="text" name="inspectorName" required={false} value={formData.inspectorName} onChange={handleChange} placeholder="اسم المفتش" className="block w-full pr-10 border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border text-gray-900 dark:text-white bg-white dark:bg-slate-700" />
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><UserCheck className="h-4 w-4 text-indigo-400" /></div>
+                        <input type="text" name="inspectorCode" required={false} value={formData.inspectorCode || ''} onChange={handleChange} placeholder="أدخل الكود (مثال: A1B2C3)" className="block w-full pr-10 border-indigo-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2 border text-gray-900 dark:text-white bg-white dark:bg-slate-700 placeholder-indigo-300 uppercase" />
                       </div>
+                      <p className="text-[10px] text-indigo-500 mt-1">يعطى من طرف مفتش المادة لربط حسابك معه تلقائياً</p>
                   </div>
                 </div>
              </div>

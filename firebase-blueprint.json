@@ -69,9 +69,24 @@
       "properties": {
         "ministry_logo_url": { "type": "string", "description": "URL of the ministry logo." }
       }
+    },
+    "InspectorCode": {
+      "title": "Inspector Code",
+      "description": "Access code mapping to an inspector.",
+      "type": "object",
+      "properties": {
+        "inspector_id": { "type": "string" },
+        "inspector_email": { "type": "string" },
+        "inspector_name": { "type": "string" }
+      },
+      "required": ["inspector_id", "inspector_email", "inspector_name"]
     }
   },
   "firestore": {
+    "inspector_codes/{codeId}": {
+      "schema": "InspectorCode",
+      "description": "Collection mapping short access codes to inspector IDs."
+    },
     "settings/branding": {
       "schema": "Branding",
       "description": "Global branding settings."
