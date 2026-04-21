@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { User, TeacherDetails } from '../types';
-import { Camera, Save, UserCircle, Briefcase, School, FileText, UserCheck, Upload, X, LogOut, Users, BookOpen, CreditCard, Calendar, AlertTriangle, Plus, Trash2, Building2 } from 'lucide-react';
+import { Camera, Save, UserCircle, Briefcase, School, FileText, UserCheck, Upload, X, LogOut, Users, BookOpen, CreditCard, Calendar, AlertTriangle, Plus, Trash2, Building2, GraduationCap } from 'lucide-react';
 
 interface TeacherProfileFormProps {
   user: User;
