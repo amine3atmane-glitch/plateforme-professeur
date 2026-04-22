@@ -71,6 +71,7 @@ service cloud.firestore {
              isOptionalString(data.get('last_inspection_date', null), 20) &&
              isOptionalString(data.get('inspector_name', null), 200) &&
              isOptionalString(data.get('inspector_id', null), 128) &&
+             isOptionalString(data.get('inspector_email', null), 200) &&
              isOptionalString(data.get('inspector_code', null), 50) &&
              (data.get('sector', 'public') in ['public', 'private']);
     }
@@ -144,7 +145,7 @@ service cloud.firestore {
     }
 
     match /teachers/{userId} {
-      allow read: if isInspector() || isOwner(userId);
+      allow read: if isOwner(userId) || (isInspector() && resource.data.inspector_email == request.auth.token.email);
       allow create, update: if isOwner(userId);
       allow delete: if false;
     }

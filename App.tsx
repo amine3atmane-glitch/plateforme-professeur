@@ -357,6 +357,8 @@ const App: React.FC = () => {
           sector: currentDetails.sector || 'public',
           image: currentPhotoUrl || user.avatarUrl || null,
           schedule: currentSessions || [],
+          inspector_email: currentDetails.inspectorEmail || null, // Crucial for Smart Inspector linking
+          inspector_name: currentDetails.inspectorName || null,
           updated_at: new Date().toISOString(),
           is_deleted: false
       };
