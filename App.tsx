@@ -144,7 +144,7 @@ const App: React.FC = () => {
       }
 
       // Teacher Data
-      let profileDoc, detailsDoc, sessionSnapshot, licenseSnapshot;
+      let profileDoc = null, detailsDoc = null, sessionSnapshot = null, licenseSnapshot = null;
       try {
         profileDoc = await getDoc(doc(db, 'profiles', userId));
         detailsDoc = await getDoc(doc(db, 'teacher_details', userId));
@@ -153,16 +153,14 @@ const App: React.FC = () => {
         const licensesQuery = query(collection(db, 'licenses'), where('user_id', '==', userId));
         licenseSnapshot = await getDocs(licensesQuery);
       } catch (error) {
-        handleFirestoreError(error, OperationType.GET, `loadUserData for ${userId}`);
-        return;
+        console.warn("Could not fetch remote data (might be new user or missing rules):", error);
+        // Continue with local storage or defaults instead of failing
       }
 
-      const profile = profileDoc.exists() ? profileDoc.data() : null;
-      const detailsData = detailsDoc.exists() ? detailsDoc.data() : null;
-      const detailsError = !detailsDoc.exists();
-      const sessionData = sessionSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      const sessionError = false;
-      const licenseData = licenseSnapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+      const profile = profileDoc?.exists() ? profileDoc.data() : null;
+      const detailsData = detailsDoc?.exists() ? detailsDoc.data() : null;
+      const sessionData = sessionSnapshot?.docs.map(d => ({ id: d.id, ...d.data() })) || [];
+      const licenseData = licenseSnapshot?.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()) || [];
         
       const localDetailsStr = localStorage.getItem(`teacher_details_${userId}`);
       const localAvatarStr = localStorage.getItem(`avatar_${userId}`);
@@ -206,7 +204,7 @@ const App: React.FC = () => {
       } else if (localDetailsStr) {
             finalDetails = JSON.parse(localDetailsStr);
             if (finalDetails) finalDetails.assignedClasses = assignedClasses;
-            if (detailsError) setIsOffline(true);
+            setIsOffline(true);
       } else {
             // Get name fallback from email if displayName is missing
             const emailPrefix = email.split('@')[0];
@@ -252,7 +250,7 @@ const App: React.FC = () => {
           localStorage.setItem(`sessions_${userId}`, JSON.stringify(finalSessions));
       } else if (localSessionsStr) {
           finalSessions = JSON.parse(localSessionsStr);
-          if (sessionError || (sessionData && sessionData.length === 0)) setIsOffline(true);
+          if (sessionData && sessionData.length === 0) setIsOffline(true);
       }
       setSessions(finalSessions);
 
