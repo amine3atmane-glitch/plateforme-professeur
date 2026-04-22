@@ -1,10 +1,10 @@
 {
-  "projectId": "plateforme-professeurs",
-  "appId": "1:462391218365:web:d4207ddeab9ab81eea67d4",
-  "apiKey": "AIzaSyAPJxewBao6qS1YPj3Ft0HWk_R9uCtHvfM",
-  "authDomain": "plateforme-professeurs.firebaseapp.com",
+  "projectId": "mon-inspecteur-smart",
+  "appId": "1:613675567029:web:45b24944c54b0fa2e53bfc",
+  "apiKey": "AIzaSyBXN80DdZi8DoEmkJkZoWglJq3Tw6LS7cM",
+  "authDomain": "mon-inspecteur-smart.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "plateforme-professeurs.firebasestorage.app",
-  "messagingSenderId": "462391218365",
+  "storageBucket": "mon-inspecteur-smart.firebasestorage.app",
+  "messagingSenderId": "613675567029",
   "measurementId": ""
 }

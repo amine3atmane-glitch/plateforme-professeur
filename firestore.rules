@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default-deny catch-all
+    // 0. Catch-all deny
     match /{document=**} {
       allow read, write: if false;
     }
@@ -11,19 +11,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && request.auth.token.email == 'aminens21@gmail.com';
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isEmailVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
-    }
-
-    function isInspector() {
-      // Check if user is in authorized_users with role 'user' (as seen in screenshot)
-      return isSignedIn() && 
-             isEmailVerified() && 
-             exists(/databases/$(database)/documents/authorized_users/$(request.auth.token.email));
+    function isAuthorized() {
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/authorized_users/$(request.auth.token.email)));
     }
 
     function incoming() {
@@ -34,120 +31,60 @@ service cloud.firestore {
       return resource.data;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
+    // --- Rules for Teachers Platform ---
 
-    // Validation helper for optional strings that could be null
-    function isOptionalString(val, maxSize) {
-      return val == null || (val is string && val.size() <= maxSize);
-    }
-
-    // --- Validation Blueprints ---
-
-    function isValidProfile(data) {
-      return isOptionalString(data.get('email', null), 200) &&
-             isOptionalString(data.get('full_name', null), 200) &&
-             isOptionalString(data.get('avatar_url', null), 1000) &&
-             isOptionalString(data.get('id', null), 128) &&
-             isOptionalString(data.get('updated_at', null), 50);
-    }
-
-    function isValidTeacherDetails(data) {
-      return isOptionalString(data.get('id', null), 128) &&
-             isOptionalString(data.get('full_name', null), 200) &&
-             isOptionalString(data.get('payment_id', null), 50) &&
-             isOptionalString(data.get('recruitment_date', null), 20) &&
-             isOptionalString(data.get('tenure_date', null), 20) &&
-             isOptionalString(data.get('last_promotion_date', null), 20) &&
-             isOptionalString(data.get('grade_date', null), 20) &&
-             (data.get('genre', 'male') in ['male', 'female']) &&
-             isOptionalString(data.get('framework', null), 200) &&
-             isOptionalString(data.get('institution', null), 200) &&
-             isOptionalString(data.get('subject', null), 200) &&
-             isOptionalString(data.get('grade', null), 100) &&
-             isOptionalString(data.get('rank', null), 50) &&
-             isOptionalString(data.get('last_inspection_score', null), 10) &&
-             isOptionalString(data.get('last_inspection_date', null), 20) &&
-             isOptionalString(data.get('inspector_name', null), 200) &&
-             isOptionalString(data.get('inspector_id', null), 128) &&
-             isOptionalString(data.get('inspector_email', null), 200) &&
-             isOptionalString(data.get('inspector_code', null), 50) &&
-             (data.get('sector', 'public') in ['public', 'private']);
-    }
-
-    function isValidSession(data) {
-      return data.keys().hasAll(['user_id', 'day', 'start_time', 'end_time']) &&
-             data.user_id == request.auth.uid &&
-             data.day is string &&
-             data.start_time is string &&
-             data.end_time is string &&
-             isOptionalString(data.get('id', null), 128);
-    }
-
-    function isValidLicense(data) {
-      return data.keys().hasAll(['user_id', 'start_date', 'end_date']) &&
-             data.user_id == request.auth.uid &&
-             data.start_date is string &&
-             data.end_date is string &&
-             isOptionalString(data.get('id', null), 128);
-    }
-
-    function isValidBranding(data) {
-      return isOptionalString(data.get('ministry_logo_url', null), 2000000);
-    }
-
-    function isValidInspectorCode(data) {
-      return data.keys().hasAll(['inspector_id', 'inspector_email', 'inspector_name']) &&
-             data.inspector_id == request.auth.uid &&
-             data.inspector_email is string &&
-             data.inspector_name is string;
-    }
-
-    // --- Collection Matches ---
-
-    match /authorized_users/{email} {
-      allow read: if isSignedIn();
-      allow write: if false; // Only manageable through the Smart Inspector app
-    }
-
-    match /settings/branding {
-      allow read: if true;
-      allow write: if isInspector();
-    }
-
+    // 1. Profiles and Details
     match /profiles/{userId} {
-      allow read: if isOwner(userId) || (isInspector() && get(/databases/$(database)/documents/teacher_details/$(userId)).data.inspector_email == request.auth.token.email);
-      allow create, update: if isOwner(userId) && isValidProfile(incoming());
-      allow delete: if false;
+      allow read, write: if isOwner(userId);
     }
 
     match /teacher_details/{userId} {
-      allow read: if isOwner(userId) || (isInspector() && resource.data.inspector_email == request.auth.token.email);
-      allow create, update: if isOwner(userId) && isValidTeacherDetails(incoming());
-      allow delete: if false;
+      allow read, write: if isOwner(userId) || isSuperAdmin();
     }
 
+    // 2. Timetable and Licenses
     match /timetable_sessions/{sessionId} {
-      allow list, get: if (isSignedIn() && resource.data.user_id == request.auth.uid) || 
-                          (isInspector() && get(/databases/$(database)/documents/teacher_details/$(resource.data.user_id)).data.inspector_email == request.auth.token.email);
-      allow create: if isSignedIn() && isValidSession(incoming());
-      allow update: if isSignedIn() && existing().user_id == request.auth.uid && isValidSession(incoming());
-      allow delete: if isSignedIn() && existing().user_id == request.auth.uid;
+      allow read, write: if isOwner(incoming() != null ? (incoming().get('user_id', '')) : (existing().get('user_id', ''))) || isSuperAdmin();
     }
 
     match /licenses/{licenseId} {
-      allow list, get: if (isSignedIn() && resource.data.user_id == request.auth.uid) || 
-                          (isInspector() && get(/databases/$(database)/documents/teacher_details/$(resource.data.user_id)).data.inspector_email == request.auth.token.email);
-      allow create: if isSignedIn() && isValidLicense(incoming());
-      allow update: if isSignedIn() && existing().user_id == request.auth.uid && isValidLicense(incoming());
-      allow delete: if isSignedIn() && existing().user_id == request.auth.uid;
+      allow read, write: if isOwner(incoming() != null ? (incoming().get('user_id', '')) : (existing().get('user_id', ''))) || isSuperAdmin();
     }
 
-    match /teachers/{userId} {
-      allow read: if isOwner(userId) || (isInspector() && resource.data.inspector_email == request.auth.token.email);
+    // 3. Shared Sync Collection (The Bridge)
+    match /teachers/{teacherId} {
+      // Inspector can only read teachers linked to their email
+      allow read: if isAuthorized() && (isSuperAdmin() || resource.data.inspector_email == request.auth.token.email);
+      // Teacher can create and update their public record
+      allow create, update: if isOwner(teacherId);
+      allow delete: if isSuperAdmin();
+    }
+
+    // 4. Access Code and Authorization
+    match /authorized_users/{email} {
+      // Allows teachers to check the code during linking
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && (request.auth.token.email == email || isSuperAdmin());
+      allow update: if isSignedIn() && request.auth.token.email == email && incoming().diff(existing()).affectedKeys().hasOnly(['accessCode']);
+      allow create, delete: if isSuperAdmin();
+    }
+
+    // --- Backup & Inspector Logic ---
+    match /settings/branding {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /backups/{userId} {
+      allow get, delete: if isOwner(userId);
       allow create, update: if isOwner(userId);
-      allow delete: if false;
+      match /chunks/{chunkId} {
+        allow list, get, create, update, delete: if isOwner(userId);
+      }
+    }
+
+    match /users_data/{inspectorName} {
+      allow read, write: if isSuperAdmin();
     }
   }
 }
