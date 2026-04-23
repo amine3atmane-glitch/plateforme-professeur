@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { User, ClassSession, DayOfWeek, TeacherDetails, LicenseRecord } from './types';
 import Login from './components/Login';
 import TimetableGrid from './components/TimetableGrid';
-import InspectorDashboard from './components/InspectorDashboard';
 import ConfirmationModal from './components/ConfirmationModal';
 import LicenseModal from './components/LicenseModal';
 import EditSlotModal from './components/EditSlotModal';
@@ -14,7 +13,7 @@ import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, updatePassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc, writeBatch } from 'firebase/firestore';
 
-type AppMode = 'login' | 'teacher' | 'inspector' | 'loading';
+type AppMode = 'login' | 'teacher' | 'loading';
 
 export enum OperationType {
   CREATE = 'create',
@@ -125,24 +124,6 @@ const App: React.FC = () => {
 
   // دالة تحميل بيانات المستخدم
   const loadUserData = useCallback(async (userId: string, email: string, metaName?: string) => {
-      // Dynamic Inspector Check
-      try {
-          const authUserDoc = await getDoc(doc(db, 'authorized_users', email));
-          if (authUserDoc.exists()) {
-              setMode('inspector');
-              setUser({ 
-                  id: userId, 
-                  email: email, 
-                  name: authUserDoc.data().name || 'المفتش التربوي', // Fallback name
-                  avatarUrl: `https://ui-avatars.com/api/?name=Inspector&background=10b981&color=fff` 
-              });
-              return;
-          }
-      } catch (err) {
-          console.error("Error checking inspector status:", err);
-          // Fallback to teacher mode if check fails, or show error
-      }
-
       // Teacher Data
       let profileDoc = null, detailsDoc = null, sessionSnapshot = null, licenseSnapshot = null;
       try {
@@ -681,7 +662,6 @@ const App: React.FC = () => {
 
   if (mode === 'loading') return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
   if (mode === 'login') return <Login onInspectorLogin={handleLocalInspectorLogin} />;
-  if (mode === 'inspector') return <InspectorDashboard onLogout={handleLogout} onThemeToggle={toggleTheme} currentTheme={theme} />;
   if (!user) return null;
 
   return (
